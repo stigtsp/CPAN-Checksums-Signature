@@ -46,10 +46,10 @@ subtest 'gpgv' => sub {
        "message parses and contains CPAN-2.28.tar.gz");
 
     throws_ok(sub { $sig->_verify_gpgv($message."extra", $signature); },
-              qr/VERIFICATION FAILED.+gpgv: BAD signature from/s);
+              qr/FAILED VERIFICATION.+gpgv: BAD signature from/s);
 
     throws_ok(sub { $sig->_verify_gpgv($message, ""); },
-              qr/VERIFICATION FAILED.+verify signatures failed/s);
+              qr/FAILED VERIFICATION.+verify signatures failed/s);
 
     done_testing();
 };
@@ -67,10 +67,10 @@ subtest 'Crypt::OpenPGP' => sub {
        "message parses and contains CPAN-2.28.tar.gz");
 
     throws_ok(sub { $sig->_verify_crypt_openpgp($message."extra", $signature); },
-              qr/VERIFICATION FAILED.+Message hash does not match signature checkbytes/s);
+              qr/FAILED VERIFICATION.+Message hash does not match signature checkbytes/s);
 
     throws_ok(sub { $sig->_verify_crypt_openpgp($message, ""); },
-              qr/VERIFICATION FAILED.+Need Signature or SigFile to verify/s);
+              qr/FAILED VERIFICATION.+Need Signature or SigFile to verify/s);
 
     done_testing();
 };
