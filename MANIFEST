@@ -1,0 +1,9 @@
+Changes
+Makefile.PL
+cpanfile
+MANIFEST
+README
+t/01_verify.t
+t/pause2021.gpg
+t/CHECKSUMS
+lib/CPAN/Checksums/Signature.pm

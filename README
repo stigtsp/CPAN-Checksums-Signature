@@ -1,0 +1,30 @@
+CPAN-Checksums-Signature version 0.01
+=====================================
+
+Proposal for verifying CHECKSUMS distributed on CPAN.
+
+Supports signature verifcation via GnuPG v1, GnuPG v2 or Crypt::OpenPGP. This
+module contains the PAUSE PGP signing key for trust. 
+
+INSTALLATION
+
+To install this module type the following:
+
+   perl Makefile.PL
+   make
+   make test
+   make install
+
+DEPENDENCIES
+
+This module requires these other modules and libraries:
+
+COPYRIGHT AND LICENCE
+
+Copyright (C) 2020 by Stig Palmquist
+
+This library is free software; you can redistribute it and/or modify
+it under the same terms as Perl itself, either Perl version 5.32.0 or,
+at your option, any later version of Perl 5 you may have available.
+
+
