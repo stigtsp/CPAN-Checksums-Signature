@@ -6,6 +6,17 @@ Proposal for verifying CHECKSUMS distributed on CPAN.
 Supports signature verifcation via GnuPG v1, GnuPG v2 or Crypt::OpenPGP. This
 module contains the PAUSE PGP signing key for trust. 
 
+SYNOPSIS
+
+use CPAN::Checksums::Signature;
+
+# To verify PGP-signature, and safely reval checksums from CPAN
+my $chksum = CPAN::Checksums::Signature::load("./CHECKSUMS");
+
+# To check if dependencies for signature verification is installed
+warn CPAN::Checksums::Signature::can_verify() ? "Can verify" : "Cannot verify";
+
+
 INSTALLATION
 
 To install this module type the following:

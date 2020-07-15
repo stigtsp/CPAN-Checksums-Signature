@@ -244,14 +244,17 @@ CPAN::Checksums::Signature - Load and verify PGP signed CHECKSUMS files from CPA
 
   use CPAN::Checksums::Signature;
 
-  my $checksums = CPAN::Checksums::Signature->load("./CHECKSUMS");
+  # To verify PGP-signature, and safely reval checksums from CPAN
+  my $chksum = CPAN::Checksums::Signature::load("./CHECKSUMS");
+
+  # To check if dependencies for signature verification is installed
+  warn CPAN::Checksums::Signature::can_verify() ? "Can verify" : "Cannot verify";
 
   ...
 
 =head1 DESCRIPTION
 
-Blah blah blah.
-
+TODO: Write something
 
 =head1 SEE ALSO
 
