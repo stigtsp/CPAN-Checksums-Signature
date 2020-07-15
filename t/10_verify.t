@@ -30,25 +30,22 @@ my $unsafe = Safe->new->reval($message);
 ok(exists $unsafe->{"CPAN-2.28.tar.gz"},
    "message parses and contains CPAN-2.28.tar.gz");
 
-my $sig = CPAN::Checksums::Signature->new;
-isa_ok($sig, "CPAN::Checksums::Signature");
-
 
 subtest 'gpgv' => sub {
     plan skip_all => 'gnupg is not installed'
       unless CPAN::Checksums::Signature::_which_gpgv();
 
-    my $verified = $sig->_verify_gpgv($message, $signature);
+    my $verified = CPAN::Checksums::Signature::_verify_gpgv($message, $signature);
 
     ok($verified eq $message, "verified and message is equal");
 
     ok(exists Safe->new->reval($verified)->{"CPAN-2.28.tar.gz"},
        "message parses and contains CPAN-2.28.tar.gz");
 
-    throws_ok(sub { $sig->_verify_gpgv($message."extra", $signature); },
+    throws_ok(sub { CPAN::Checksums::Signature::_verify_gpgv($message."extra", $signature); },
               qr/FAILED VERIFICATION.+gpgv: BAD signature from/s);
 
-    throws_ok(sub { $sig->_verify_gpgv($message, ""); },
+    throws_ok(sub { CPAN::Checksums::Signature::_verify_gpgv($message, ""); },
               qr/FAILED VERIFICATION.+verify signatures failed/s);
 
     done_testing();
@@ -60,16 +57,16 @@ subtest 'Crypt::OpenPGP' => sub {
       unless eval { require Crypt::OpenPGP; 1 };
 
 
-    my $verified = $sig->_verify_crypt_openpgp($message, $signature);
+    my $verified = CPAN::Checksums::Signature::_verify_crypt_openpgp($message, $signature);
     ok($verified eq $message, "verified and message is equal");
 
     ok(exists Safe->new->reval($verified)->{"CPAN-2.28.tar.gz"},
        "message parses and contains CPAN-2.28.tar.gz");
 
-    throws_ok(sub { $sig->_verify_crypt_openpgp($message."extra", $signature); },
+    throws_ok(sub { CPAN::Checksums::Signature::_verify_crypt_openpgp($message."extra", $signature); },
               qr/FAILED VERIFICATION.+Message hash does not match signature checkbytes/s);
 
-    throws_ok(sub { $sig->_verify_crypt_openpgp($message, ""); },
+    throws_ok(sub { CPAN::Checksums::Signature::_verify_crypt_openpgp($message, ""); },
               qr/FAILED VERIFICATION.+Need Signature or SigFile to verify/s);
 
     done_testing();
