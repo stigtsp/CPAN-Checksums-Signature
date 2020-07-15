@@ -47,6 +47,14 @@ subtest 'gpgv' => sub {
 
     throws_ok(sub { CPAN::Checksums::Signature::_verify_gpgv($message, ""); },
               qr/FAILED VERIFICATION.+verify signatures failed/s);
+    {
+        # Untrusted signature at top of file
+        my ($sigtext, $message, $signature) = CPAN::Checksums::Signature::_parse_clearsigned(
+            checksums("CHECKSUMS-tampered-3"));
+
+        throws_ok(sub { CPAN::Checksums::Signature::_verify_gpgv($message, $signature); },
+                  qr/FAILED VERIFICATION.+public key not found/s);
+    }
 
     done_testing();
 };
@@ -68,6 +76,19 @@ subtest 'Crypt::OpenPGP' => sub {
 
     throws_ok(sub { CPAN::Checksums::Signature::_verify_crypt_openpgp($message, ""); },
               qr/FAILED VERIFICATION.+Need Signature or SigFile to verify/s);
+
+
+    {
+        # Untrusted signature at top of file
+        my ($sigtext, $message, $signature) = CPAN::Checksums::Signature::_parse_clearsigned(
+            checksums("CHECKSUMS-tampered-3"));
+
+#        warn $message, $signature;
+
+        throws_ok(sub { CPAN::Checksums::Signature::_verify_crypt_openpgp($message, $signature); },
+                  qr/FAILED VERIFICATION.+Could not find public key/s);
+
+    }
 
     done_testing();
 };

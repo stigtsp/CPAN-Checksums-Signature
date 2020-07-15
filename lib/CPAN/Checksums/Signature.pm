@@ -192,7 +192,7 @@ sub _parse_clearsigned {
   # "-----BEGIN ..." blocks, etc.
   #
 
-  if ($text =~ m/[^ -~\r\n\t]/) {
+  if ($text =~ m/[^ -~\r\n\t]/g) {
     _fail_verify("Unexpected data found. Only printable ASCII and whitespace is accepted.");
   }
 
@@ -208,17 +208,16 @@ sub _parse_clearsigned {
 
         ( # signature: Only allow printable ascii, linefeed and newline inside the armored signature
           ^-----BEGIN\ PGP\ SIGNATURE-----\r?\n
-          ^[\ -~\r\n]+?
-          ^-----END\ PGP\ SIGNATURE-----\r?\n$
+          ^[ -~\r\n\ ]+?
+          ^-----END\ PGP\ SIGNATURE-----\r?\n
         )
       )}msx;
 
-  _fail_verify("Unable to parse clearsigned text: $text")
+  _fail_verify("Unable to parse clearsigned text")
     unless $sigtext && $message && $signature;
 
   # Normalize line endings to \r\n
   $message =~ s/\r?\n/\r\n/g;
-
 
   return ($sigtext, $message, $signature);
 }
