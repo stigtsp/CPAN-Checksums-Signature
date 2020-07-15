@@ -53,7 +53,7 @@ subtest 'gpgv' => sub {
             checksums("CHECKSUMS-tampered-3"));
 
         throws_ok(sub { CPAN::Checksums::Signature::_verify_gpgv($message, $signature); },
-                  qr/FAILED VERIFICATION.+public key not found/s);
+                  qr/FAILED VERIFICATION.+(No public key|public key not found)/s);
     }
 
     done_testing();
