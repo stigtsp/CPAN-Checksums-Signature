@@ -5,48 +5,105 @@ use warnings;
 
 use 5.8.0;
 
+
 use Carp;
+use Safe;
+use File::stat;
 use File::Temp;
 use File::Spec;
 use File::Basename qw(dirname);
 
 our $VERSION = '0.01';
 
-our $PAUSE_KEYRING = File::Spec->catfile(dirname(__FILE__),
+our $KEYRING = File::Spec->catfile(dirname(__FILE__),
                                          'Signature',
                                          '328DA867450F89EC.kbx');
 
-sub new {
-  my ($class, %args) = @_;
-  my $file = $args{keyring} ||= $PAUSE_KEYRING;
+our $MAX_CHECKSUMS_SIZE = 2_000_000; # Max checksums file size
 
-  if (!File::Spec->file_name_is_absolute($file)) {
-    $file = File::Spec->catfile(Cwd::cwd(), $file);
+sub keyring {
+  my $keyring = $KEYRING;
+  if (!File::Spec->file_name_is_absolute($keyring)) {
+    $keyring = File::Spec->rel2abs($keyring);
   }
 
-  croak "Cannot find keyring $file" unless -f $file;
-  croak "Cannot read keyring $file" unless -r $file;
-  $args{keyring} = $file;
+  croak "Cannot find keyring $keyring" unless -f $keyring;
+  croak "Keyring not readable $keyring" unless -r $keyring;
 
-  return bless \%args, $class;
+  return $keyring;
+}
+
+sub can_verify {
+  return _which_gpgv() || eval { require Crypt::OpenPGP; 1 };
+}
+
+sub load {
+  my $file = shift;
+
+  _sanity_checksums_file($file);
+
+  my $chk_unverified = _read_checksums_file($file);
+
+  my $chk_verified = _verify_signature($chk_unverified);
+
+  my $checksums = _reval($chk_verified);
+
+  return $checksums;
+}
+
+sub _reval {
+  my $code = shift;
+  my $safe = Safe->new;
+
+  $safe->permit_only(qw(:base_mem :base_core
+                        rv2gv gv padany));
+
+  my $ret = $safe->reval($code);
+  croak($@) if $@;
+
+  return $ret;
 }
 
 
-sub verify {
-  my $self = shift;
+
+sub _sanity_checksums_file {
+  my $file = shift;
+  croak "Cannot find file $file" unless -f $file;
+  croak "File not readable $file" unless -r $file;
+
+  my $stat = stat($file) or croak($!);
+
+  croak "$file is larger than \$MAX_CHECKSUMS_SIZE" if
+    $stat->size > $MAX_CHECKSUMS_SIZE;
+
+  return 1;
+}
+
+sub _read_checksums_file {
+  my $file = shift;
+  open(my $fh, '<', $file) or croak $!;
+  my $r = do {
+    local undef $/;
+    <$fh>;
+  };
+  close($fh);
+  return $r;
+}
+
+sub _verify_signature {
   my $text = shift;
 
-  my ($sigtext, $message, $signature) = $self->_parse_clearsigned($text);
+  my ($sigtext, $message, $signature) = _parse_clearsigned($text);
 
-  if ($self->_which_gpgv()) {
+  if (_which_gpgv()) {
 
-    return $self->_verify_gpgv($message,
-                               $signature);
+    return _verify_gpgv($message,
+                        $signature);
 
   } elsif (eval { require Crypt::OpenPGP; 1; }) {
 
-    return $self->_verify_crypt_openpgp($message,
-                                        $signature);
+    return _verify_crypt_openpgp($message,
+                                 $signature);
   }
   croak("No verification method available. Install gnupg or Crypt::OpenPGP");
 }
@@ -66,10 +123,11 @@ sub _which_gpgv {
       return $which_gpgv;
     }
   }
+  return;
 }
 
 sub _verify_gpgv {
-  my ($self, $message, $signature) = @_;
+  my ($message, $signature) = @_;
 
   my $message_f = new File::Temp();
   $message_f->print($message);
@@ -79,14 +137,13 @@ sub _verify_gpgv {
   $signature_f->print($signature);
   $signature_f->close;
 
-  my $keyring = $self->{keyring};
 
   # The --output argument is avoided to maintain compatibility with gpgv1
-  #
+
   my @cmd = (_which_gpgv(),
              "-q",
              "--logger-fd", 1,
-             "--keyring", $keyring,
+             "--keyring", $KEYRING,
              $signature_f->filename,
              $message_f->filename);
 
@@ -100,25 +157,25 @@ sub _verify_gpgv {
 
   my $exit = $?;
 
-  fail(join("", @debug, "\nExit: $exit\n"))
+  _fail_verify(join("", @debug, "\nExit: $exit\n"))
     if $exit;
 
   return $message;
 }
 
 sub _verify_crypt_openpgp {
-  my ($self, $message, $signature)  = @_;
+  my ($message, $signature)  = @_;
 
   require Crypt::OpenPGP;
 
-  my $pgp = Crypt::OpenPGP->new( PubRing => $self->{keyring} );
+  my $pgp = Crypt::OpenPGP->new( PubRing => $KEYRING );
 
   my ($rv, $sig) = $pgp->verify( Signature => $signature,
                                  Data      => $message )
-    or fail($pgp->errstr);
+    or _fail_verify($pgp->errstr);
 
   if (!$rv) {
-    fail("Crypt::OpenPGP returned $rv");
+    _fail_verify("Crypt::OpenPGP returned $rv");
   }
 
   return $message;
@@ -131,9 +188,13 @@ sub _parse_clearsigned {
   # Crypt::OpenPGP since they don't seem to have a way of returning the message
   # part.
   #
-  # This is not a complete parser for the format, as it doesn't
-  # handle nested "----- BEGIN ..." blocks, etc.
+  # This is not a complete parser for the format, as it doesn't handle nested
+  # "-----BEGIN ..." blocks, etc.
   #
+
+  if ($text =~ m/[^ -~\r\n\t]/) {
+    _fail_verify("Unexpected data found. Only printable ASCII and whitespace is accepted.");
+  }
 
   my ($sigtext, $message, $signature) = $text =~
     m{(
@@ -145,29 +206,30 @@ sub _parse_clearsigned {
 
         \r?\n           # the last newlines are not a part of the message
 
-        ( # signature: Only allow printable ascii, linefeed and newline
+        ( # signature: Only allow printable ascii, linefeed and newline inside the armored signature
           ^-----BEGIN\ PGP\ SIGNATURE-----\r?\n
           ^[\ -~\r\n]+?
           ^-----END\ PGP\ SIGNATURE-----\r?\n$
         )
       )}msx;
 
+  _fail_verify("Unable to parse clearsigned text: $text")
+    unless $sigtext && $message && $signature;
+
   # Normalize line endings to \r\n
   $message =~ s/\r?\n/\r\n/g;
 
-  fail("Unable to parse clearsigned text")
-    unless $sigtext && $message && $signature;
 
   return ($sigtext, $message, $signature);
 }
 
 
-sub fail {
+sub _fail_verify {
   my $msg = shift;
   my $err = __PACKAGE__ . " FAILED VERIFICATION\n".
     ("=" x 50)."\n$msg\n";
   croak $err;
- }
+}
 
 
 
