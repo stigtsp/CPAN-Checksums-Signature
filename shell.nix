@@ -153,6 +153,7 @@ in pkgs.mkShell {
     CryptOpenPGP
     IOSocketSSL
     TestException
+    TestPerlCritic
     SmartComments
     gnupg1orig
   ];
