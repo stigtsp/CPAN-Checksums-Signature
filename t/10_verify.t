@@ -11,6 +11,7 @@ sub checksums {
     my $f = shift;
     local undef $/;
     open my $fh, '<', 't/checksums/'.$f;
+    binmode($fh);
     <$fh>;
 };
 
