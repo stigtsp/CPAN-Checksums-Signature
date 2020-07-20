@@ -10,13 +10,15 @@ use_ok('CPAN::Checksums::Signature');
 sub checksums {
     my $f = shift;
     local undef $/;
-    open my $fh, '<', 't/'.$f;
+    open my $fh, '<', 't/checksums/'.$f;
     <$fh>;
 };
 
+
+
 ### TODO: Add more negative tests: wrong keys, multisignatures, etc. binary data
 
-my ($sigtext, $message, $signature) = CPAN::Checksums::Signature::_parse_clearsigned(checksums("CHECKSUMS"));
+my ($sigtext, $message, $signature) = CPAN::Checksums::Signature::_parse_clearsigned(checksums("good"));
 
 like($sigtext, qr/^-----BEGIN PGP SIGNED MESSAGE-----/, 'sigtext starts with BEGIN PGP SIGNED MESSAGE');
 like($sigtext, qr/-----END PGP SIGNATURE-----\r?\n$/, 'sigtext ends with END PGP SIGNATURE');
@@ -24,6 +26,9 @@ like($sigtext, qr/-----END PGP SIGNATURE-----\r?\n$/, 'sigtext ends with END PGP
 
 like($signature, qr/^-----BEGIN PGP SIGNATURE-----/, 'signature starts with BEGIN PGP SIGNATURE');
 like($signature, qr/-----END PGP SIGNATURE-----\r?\n$/, 'signature ends with END PGP SIGNATURE');
+
+my $good_message = checksums("good_message");
+is($message, $good_message,"\$message equals good_message");
 
 
 my $unsafe = Safe->new->reval($message);
@@ -50,7 +55,7 @@ subtest 'gpgv' => sub {
     {
         # Untrusted signature at top of file
         my ($sigtext, $message, $signature) = CPAN::Checksums::Signature::_parse_clearsigned(
-            checksums("CHECKSUMS-tampered-3"));
+            checksums("bad-prepend-clearsign"));
 
         throws_ok(sub { CPAN::Checksums::Signature::_verify_gpgv($message, $signature); },
                   qr/FAILED VERIFICATION.+(No public key|public key not found)/s);
@@ -81,7 +86,7 @@ subtest 'Crypt::OpenPGP' => sub {
     {
         # Untrusted signature at top of file
         my ($sigtext, $message, $signature) = CPAN::Checksums::Signature::_parse_clearsigned(
-            checksums("CHECKSUMS-tampered-3"));
+            checksums("bad-prepend-clearsign"));
 
 #        warn $message, $signature;
 
