@@ -196,9 +196,21 @@ sub _parse_clearsigned {
     _fail_verify("Unexpected data found. Only printable ASCII and whitespace is accepted.");
   }
 
+
+  my $begin_message = qr/-----BEGIN PGP SIGNED MESSAGE-----/;
+  my $begin_sig     = qr/-----BEGIN PGP SIGNATURE-----/;
+  my $end_sig       = qr/-----END PGP SIGNATURE-----/;
+
+  for ($begin_message, $begin_sig, $end_sig) {
+    my $found = () = $text =~ m/^$_\r?\n/mg;
+    _fail_verify("Found more than one $_") if $found > 1;
+    _fail_verify("Did not find $_") if $found < 1;
+  }
+
+
   my ($sigtext, $message, $signature) = $text =~
     m{(
-        ^-----BEGIN\ PGP\ SIGNED\ MESSAGE-----\r?\n
+        ^$begin_message\r?\n
         ^Hash:\ [A-Z0-9]+\r?\n
         ^\r?\n
 
@@ -207,9 +219,9 @@ sub _parse_clearsigned {
         \r?\n           # the last newlines are not a part of the message
 
         ( # signature: Only allow printable ascii, linefeed and newline inside the armored signature
-          ^-----BEGIN\ PGP\ SIGNATURE-----\r?\n
+          ^$begin_sig\r?\n
           ^[ -~\r\n\ ]+?
-          ^-----END\ PGP\ SIGNATURE-----\r?\n
+          ^$end_sig\r?\n
         )
       )}msx;
 

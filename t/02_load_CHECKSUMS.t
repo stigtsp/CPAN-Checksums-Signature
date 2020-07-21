@@ -28,5 +28,9 @@ throws_ok sub { CPAN::Checksums::Signature::load("t/checksums/bad-prepend-signed
   qr/FAILED VERIFICATION.+Unexpected\ data\ found/s;
 
 
+throws_ok sub { CPAN::Checksums::Signature::load("t/checksums/bad-double") },
+  qr/FAILED VERIFICATION.+Found\ more/s;
+
+
 
 done_testing();
