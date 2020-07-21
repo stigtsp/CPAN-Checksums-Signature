@@ -17,7 +17,7 @@ our $VERSION = '0.01';
 
 our $KEYRING = File::Spec->catfile(dirname(__FILE__),
                                          'Signature',
-                                         '328DA867450F89EC.kbx');
+                                         '2E66557AB97C19C791AF8E20328DA867450F89EC.gpg');
 
 our $MAX_CHECKSUMS_SIZE = 2_000_000; # Max checksums file size
 
