@@ -34,7 +34,7 @@ sub keyring {
 }
 
 sub can_verify {
-  return _which_gpgv() || eval { require Crypt::OpenPGP; 1 };
+  return !!_which_gpgv();
 }
 
 sub load {
@@ -93,19 +93,15 @@ sub _read_checksums_file {
 sub _verify_signature {
   my $text = shift;
 
-  my ($sigtext, $message, $signature) = _parse_clearsigned($text);
+  my ($cleartext, $message, $signature) = _parse_cleartext($text);
 
   if (_which_gpgv()) {
 
     return _verify_gpgv($message,
                         $signature);
 
-  } elsif (eval { require Crypt::OpenPGP; 1; }) {
-
-    return _verify_crypt_openpgp($message,
-                                 $signature);
   }
-  croak("No verification method available. Install gnupg or Crypt::OpenPGP");
+  croak("No verification method available. Install gnupg.");
 }
 
 
@@ -141,11 +137,13 @@ sub _verify_gpgv {
   # The --output argument is avoided to maintain compatibility with gpgv1
 
   my @cmd = (_which_gpgv(),
+             "--keyring", $KEYRING,
              "-q",
              "--logger-fd", 1,
-             "--keyring", $KEYRING,
              $signature_f->filename,
-             $message_f->filename);
+             $message_f->filename,
+
+         );
 
   my @debug;
   open(my $gpgv, "-|", @cmd)
@@ -163,37 +161,19 @@ sub _verify_gpgv {
   return $message;
 }
 
-sub _verify_crypt_openpgp {
-  my ($message, $signature)  = @_;
-
-  require Crypt::OpenPGP;
-
-  my $pgp = Crypt::OpenPGP->new( PubRing => $KEYRING );
-
-  my ($rv, $sig) = $pgp->verify( Signature => $signature,
-                                 Data      => $message )
-    or _fail_verify($pgp->errstr);
-
-  if (!$rv) {
-    _fail_verify("Crypt::OpenPGP returned $rv");
-  }
-
-  return $message;
-}
-
-sub _parse_clearsigned {
+sub _parse_cleartext {
   my $text = shift;
 
-  # Need to parse this format to maintain compatibility with gpgv1 and
-  # Crypt::OpenPGP since they don't seem to have a way of returning the message
-  # part.
+  # Need to parse this format to maintain compatibility with gpgv1 and since it
+  # don't seem to have a way of returning the verified message like gpgv2 does.
   #
-  # This is not a complete parser for the format, as it doesn't handle nested
-  # "-----BEGIN ..." blocks, etc.
+  # This is an opinionated and incomplete parser for the OpenPGP cleartext
+  # format, it does not handle escaped "-----BEGIN ..." headers in the message,
+  # and supports only ASCII and a single signed cleartext message.
   #
 
   if ($text =~ m/[^ -~\r\n\t]/g) {
-    _fail_verify("Unexpected data found. Only printable ASCII and whitespace is accepted.");
+    _fail_verify("Unexpected data found in cleartext. Only printable ASCII and some whitespace is allowed.");
   }
 
 
@@ -208,30 +188,32 @@ sub _parse_clearsigned {
   }
 
 
-  my ($sigtext, $message, $signature) = $text =~
+  my ($cleartext, $message, $signature) = $text =~
     m{(
         ^$begin_message\r?\n
-        ^Hash:\ [A-Z0-9]+\r?\n
+        ^(?:Hash:\ [A-Z][A-Z0-9]+\r?\n){0,} # Optional Hash headers
         ^\r?\n
 
-        ^([\ -~\r\n]+?) # message: Only allow printable ascii, linefeed and newline
+        # $message: Only allow printable ascii, and some whitespace
+        ^([\ -~\r\n\t]+?)
 
-        \r?\n           # the last newlines are not a part of the message
+        # the last newlines are not a part of the signed $message
+        \r?\n
 
-        ( # signature: Only allow printable ascii, linefeed and newline inside the armored signature
+        ( # $signature: Only allow printable ascii, linefeed and newline inside the armored signature
           ^$begin_sig\r?\n
-          ^[ -~\r\n\ ]+?
+          ^[\ -~\r\n]+?
           ^$end_sig\r?\n
         )
       )}msx;
 
-  _fail_verify("Unable to parse clearsigned text")
-    unless $sigtext && $message && $signature;
+  _fail_verify("Unable to parse cleartext")
+    unless $cleartext && $message && $signature;
 
-  # Normalize line endings to \r\n
-  $message =~ s/\r?\n/\r\n/g;
+  # Canonicalize line endings
+  $message =~ s/[\ \t]*\r?\n/\r\n/g;
 
-  return ($sigtext, $message, $signature);
+  return ($cleartext, $message, $signature);
 }
 
 

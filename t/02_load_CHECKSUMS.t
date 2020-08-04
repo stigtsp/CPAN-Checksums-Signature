@@ -12,6 +12,20 @@ my $chk = CPAN::Checksums::Signature::load("t/checksums/good");
 is($chk->{"CPAN-2.28.tar.gz"}->{sha256},
    "39d357489283d479695027640d7fc25b42ec3c52003071d1ec94496e34af5974");
 
+{
+  no warnings;
+  local $CPAN::Checksums::Signature::KEYRING = "t/checksums/stigtsp.gpg";
+  my $chk_strong = CPAN::Checksums::Signature::load("t/checksums/strong");
+
+  is($chk->{"CPAN-2.28.tar.gz"}->{sha256},
+     "39d357489283d479695027640d7fc25b42ec3c52003071d1ec94496e34af5974");
+}
+
+my $chk_ws = CPAN::Checksums::Signature::load("t/checksums/good-extra-whitespace");
+
+is($chk_ws->{"CPAN-2.28.tar.gz"}->{sha256},
+   "39d357489283d479695027640d7fc25b42ec3c52003071d1ec94496e34af5974");
+
 
 my $chk_t1 = CPAN::Checksums::Signature::load("t/checksums/bad-prepend");
 

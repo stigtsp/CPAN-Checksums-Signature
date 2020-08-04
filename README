@@ -3,8 +3,10 @@ CPAN-Checksums-Signature version 0.01
 
 Proposal for verifying CHECKSUMS distributed on CPAN.
 
-Supports signature verifcation via GnuPG v1, GnuPG v2 or Crypt::OpenPGP. This
-module contains the PAUSE PGP signing key for trust. 
+Supports signature verifcation via GnuPG v1 or GnuPG v2. This module contains
+the PAUSE PGP signing key for trust.
+
+Crypt::OpenPGP support has been removed due to no support for SHA2.
 
 SYNOPSIS
 

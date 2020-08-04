@@ -155,7 +155,8 @@ in pkgs.mkShell {
     TestException
     TestPerlCritic
     SmartComments
-    gnupg1orig
+    #gnupg1orig
+    sequoia
   ];
   shellHook = ''
   '';
