@@ -23,7 +23,7 @@ our $MAX_CHECKSUMS_SIZE = 2_000_000; # Max checksums file size
 
 sub keyring {
   my $keyring = $KEYRING;
-  if (!File::Spec->file_name_is_absolute($keyring)) {
+  if (!File::Spec->file_name_is_absolute($keyring) && $^O ne 'MSWin32') {
     $keyring = File::Spec->rel2abs($keyring);
   }
 
@@ -108,9 +108,6 @@ sub _verify_signature {
 my $which_gpgv;
 sub _which_gpgv {
   return $which_gpgv if $which_gpgv;
-
-  return if $^O eq 'MSWin32'; # TODO: Need to work out how to support gpgv on
-                              # Win32, some path issues.
 
   for my $gpgv_bin ('gpgv2', 'gpgv', 'gpgv1') {
     my $version = `$gpgv_bin --version 2>&1`;
